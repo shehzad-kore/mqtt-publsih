@@ -8,24 +8,23 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
-	"os"
 	"time"
 
 	MQTT "github.com/eclipse/paho.mqtt.golang"
 	jwt "github.com/golang-jwt/jwt"
 )
 
-func NewTlsConfig() *tls.Config {
-	certpool := x509.NewCertPool()
-	ca, err := os.ReadFile("certs/ca.crt")
-	if err != nil {
-		log.Panic(err)
-	}
-	certpool.AppendCertsFromPEM(ca)
-	return &tls.Config{
-		RootCAs: certpool,
-	}
-}
+// func NewTlsConfig() *tls.Config {
+// 	certpool := x509.NewCertPool()
+// 	//ca, err := os.ReadFile("certs/ca.crt")
+// 	if err != nil {
+// 		log.Panic(err)
+// 	}
+// 	certpool.AppendCertsFromPEM(ca)
+// 	return &tls.Config{
+// 		RootCAs: certpool,
+// 	}
+// }
 
 var (
 	bridge = struct {
@@ -160,7 +159,7 @@ func main() {
 	      log.Fatal(err)
 	  }*/
 	log.Println("[main] Sign String")
-	_, err = createJWT(*projectID, *privateKey, "RS256", 525960) //token.SignedString(key)
+	//_, err = createJWT(*projectID, *privateKey, "RS256", 525960) //token.SignedString(key)
 	if err != nil {
 		log.Fatal(err)
 	}
