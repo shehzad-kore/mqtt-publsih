@@ -1,29 +1,31 @@
 package main
 
 import (
+	"crypto/tls"
 	"crypto/x509"
 	"errors"
 	"flag"
 	"fmt"
 	"io/ioutil"
 	"log"
+	"os"
 	"time"
 
 	MQTT "github.com/eclipse/paho.mqtt.golang"
 	jwt "github.com/golang-jwt/jwt"
 )
 
-// func NewTlsConfig() *tls.Config {
-// 	certpool := x509.NewCertPool()
-// 	//ca, err := os.ReadFile("certs/ca.crt")
-// 	if err != nil {
-// 		log.Panic(err)
-// 	}
-// 	certpool.AppendCertsFromPEM(ca)
-// 	return &tls.Config{
-// 		RootCAs: certpool,
-// 	}
-// }
+func NewTlsConfig() *tls.Config {
+	certpool := x509.NewCertPool()
+	ca, err := os.ReadFile("certs/ca.crt")
+	if err != nil {
+		log.Panic(err)
+	}
+	certpool.AppendCertsFromPEM(ca)
+	return &tls.Config{
+		RootCAs: certpool,
+	}
+}
 
 var (
 	bridge = struct {
@@ -33,10 +35,10 @@ var (
 		flag.String("mqtt_host", "127.0.0.1", "MQTT Bridge Host"),
 		flag.String("mqtt_port", "1883", "MQTT Bridge Port"),
 	}
-	projectID  = flag.String("project", "my-iot-356305", "GCP Project ID")
-	region     = flag.String("region", "asia-east1", "GCP Region")
-	registryID = flag.String("registry", "broker_test", "Cloud IoT Registry ID (short form)")
-	deviceID   = flag.String("device", "shaiz_test", "Cloud IoT Core Device ID")
+	tenantID   = flag.String("tenant", "KoreWireless", "GCP tenant ID")
+	region     = flag.String("region", "us-central1", "GCP Region")
+	registryID = flag.String("registry", "KoreWireless", "Cloud IoT Registry ID (short form)")
+	deviceID   = flag.String("device", "StateManager02", "Cloud IoT Core Device ID")
 
 	//certsCA    = flag.String("ca_certs", "https://pki.google.com/roots.pem", "Download https://pki.google.com/roots.pem")
 	privateKey = flag.String("private_key", "certs/device1.key", "Path to private key file")
@@ -121,7 +123,7 @@ func main() {
 	    ClientCAs:  nil,
 	}*/
 	clientID := fmt.Sprintf("projects/%v/locations/%v/registries/%v/devices/%v",
-		*projectID,
+		*tenantID,
 		*region,
 		*registryID,
 		*deviceID,
@@ -132,7 +134,7 @@ func main() {
 	broker := fmt.Sprintf("ssl://%v:%v", *bridge.host, *bridge.port)
 	log.Printf("[main] Broker '%v'", broker)
 	//opts.AddBroker(broker)
-	opts.AddBroker("tcp://35.201.162.140:1883")
+	opts.AddBroker("tcp://35.201.155.157:1883")
 	//opts.SetClientID(clientID).SetTLSConfig(config)
 	opts.SetClientID("tenants/KoreWireless/locations/us-central1/registries/KoreWireless/devices/StateManager03")
 	print(clientID)
@@ -158,11 +160,11 @@ func main() {
 	      log.Fatal(err)
 	  }*/
 	log.Println("[main] Sign String")
-	//_, err = createJWT(*projectID, *privateKey, "RS256", 525960) //token.SignedString(key)
+	tokenString, err := createJWT(*tenantID, *privateKey, "RS256", 525960) //token.SignedString(key)
 	if err != nil {
 		log.Fatal(err)
 	}
-	opts.SetPassword("eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJhdWQiOiJteS1pb3QtMzU2MzA1IiwiZXhwIjoxNjk1NjY3OTc0LCJpYXQiOjE2NjQxMTAzNzR9.T_kzjb2mQVtF_0J9zY7QuJiY8z5sd8-VNN8XW06xo1CGQvpjYnOcfVs0tfh6t8VWDZq5PndcbNTNCybZbJd4Dhzxw_Rz-6PJoFqe9HisIl7xyRNanxzVEeeBE-3SSmJRSPTGYjx6VHZU2xRYCNmXSi0UdLPi6P43-TdK3gPZDR57CJQbbGUdVSotVAz9tbETNBdthZK6tpw8o8EgKpsBfKKOzNmXYAtt9wHuoPSI_HlFSviMMEEYZuC8Ss3xJ6nGWJuQEY6G4epsrnjxneT3fHGcjflI-if4FmdRmxmcvCQBrZd2UGvylJTK96Ir3WQfcJbQdT2n9Fc7VVifYR3Lzw")
+	opts.SetPassword(tokenString)
 	// Incoming
 	opts.SetDefaultPublishHandler(func(client MQTT.Client, msg MQTT.Message) {
 		fmt.Printf("[handler] Topic: %v\n", msg.Topic())
@@ -178,19 +180,19 @@ func main() {
 		telemetry string
 		loopback  string
 	}{
-		config:    fmt.Sprintf("/devices/%v/config", *deviceID),
-		telemetry: fmt.Sprintf("/devices/%v/events", *deviceID),
-		loopback:  fmt.Sprintf("registry/%v/devices/%v/loopback", *registryID, *deviceID),
+		config:    fmt.Sprintf("/tenants/%v/registries/%v/devices/%v/config", *tenantID, *registryID, *deviceID),
+		telemetry: fmt.Sprintf("/tenants/%v/registries/%v/devices/%v/events", *tenantID, *registryID, *deviceID),
+		loopback:  fmt.Sprintf("/tenants/%v/registries/%v/devices/%v/loopback", *tenantID, *registryID, *deviceID),
 	}
 	log.Println("[main] Creating Subscription")
 	client.Subscribe(topic.config, 0, nil)
 	print(topic.telemetry)
 	log.Println("[main] Publishing Messages")
 	start_time := time.Now().Unix()
-	for i := 0; i < 25000; i++ {
+	for i := 0; i < 1; i++ {
 		log.Printf("[main] Publishing Message #%d", i)
 		token := client.Publish(
-			"tenants/KoreWireless/registries/KoreWireless/devices/StateManager04/events",
+			topic.telemetry,
 			0,
 			false,
 			fmt.Sprintf("%d", i))
